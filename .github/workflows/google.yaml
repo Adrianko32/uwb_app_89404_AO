@@ -13,7 +13,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 1) Wyślij pliki aplikacji na serwer (do /tmp/89404)
       - name: Upload app files via SCP
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -21,14 +20,10 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          source: |
-            index.php
-            .htaccess
-            sql
-            README.md
+          source: "."
           target: /tmp/89404
+          strip_components: 1
 
-      # 2) Na serwerze: skopiuj do /var/www/89404 + odpal deploy_app.sh + restart apache
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -50,3 +45,4 @@ jobs:
 
             echo "=== Restart Apache ==="
             sudo systemctl restart apache2
+
