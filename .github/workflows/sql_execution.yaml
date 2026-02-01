@@ -1,28 +1,38 @@
-name: Execute SQL scripts
+name: Run SQL scripts
 
 on:
+  workflow_dispatch:
   push:
-    branches:
-      - main
+    paths:
+      - "sql/**"
 
 jobs:
-  sql:
+  migrate:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.DB_HOST }} >> ~/.ssh/known_hosts
+      - name: Install MySQL client
+        run: sudo apt-get update && sudo apt-get install -y mysql-client
 
-      - name: Execute SQL scripts
+      - name: Run migrations
+        env:
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.DB_HOST }} << 'EOF'
-          mysql -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} < sql/001_schema.sql
-          mysql -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} < sql/002_seed.sql
+          set -euo pipefail
+
+          cat > ~/.my.cnf << EOF
+          [client]
+          user=${DB_USER}
+          password=${DB_PASSWORD}
+          host=${DB_HOST}
           EOF
+          chmod 600 ~/.my.cnf
+
+          for f in sql/*.sql; do
+            echo "Executing $f..."
+            mysql --defaults-file=~/.my.cnf --protocol=TCP "${DB_NAME}" < "$f"
+          done
