@@ -1,0 +1,28 @@
+name: Execute SQL scripts
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sql:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.DB_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Execute SQL scripts
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.DB_HOST }} << 'EOF'
+          mysql -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} < sql/001_schema.sql
+          mysql -u${{ secrets.DB_USER }} -p${{ secrets.DB_PASSWORD }} ${{ secrets.DB_NAME }} < sql/002_seed.sql
+          EOF
