@@ -13,6 +13,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 1) Wyślij pliki aplikacji na serwer (do /tmp/89404)
+      - name: Upload app files via SCP
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
+          source: |
+            index.php
+            .htaccess
+            sql
+            README.md
+          target: /tmp/89404
+
+      # 2) Na serwerze: skopiuj do /var/www/89404 + odpal deploy_app.sh + restart apache
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -22,26 +38,15 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script_stop: true
           script: |
-            echo "=== Running deploy_app.sh ==="
+            echo "=== Copy app to DocumentRoot ==="
+            sudo mkdir -p /var/www/89404
+            sudo rsync -a --delete /tmp/89404/ /var/www/89404/
+
+            echo "=== List DocumentRoot ==="
+            ls -la /var/www/89404
+
+            echo "=== Enable site/port via deploy_app.sh ==="
             sudo /usr/local/bin/deploy_app.sh 89404 8009
 
-            echo "=== Checking DocumentRoot ==="
-            ls -la /var/www/89404 || true
-
-            # jeśli index.php nie jest w root, znajdź go w podkatalogu i skopiuj wszystko do root
-            if [ ! -f /var/www/89404/index.php ]; then
-              echo "index.php not found in root, searching subdirectory..."
-              subdir="$(sudo find /var/www/89404 -maxdepth 3 -type f -name index.php -print -quit | xargs -r dirname)"
-              if [ -n "$subdir" ]; then
-                echo "Found index.php in $subdir, copying files to DocumentRoot"
-                sudo rsync -a --delete "$subdir"/ /var/www/89404/
-              else
-                echo "ERROR: index.php not found anywhere under /var/www/89404"
-              fi
-            fi
-
-            echo "=== Restarting Apache ==="
+            echo "=== Restart Apache ==="
             sudo systemctl restart apache2
-
-            echo "=== Final DocumentRoot content ==="
-            ls -la /var/www/89404
