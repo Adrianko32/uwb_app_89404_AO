@@ -1,4 +1,7 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
 $host = getenv("DB_HOST") ?: "34.58.246.93";
 $user = getenv("DB_USER") ?: "stud";
 $pass = getenv("DB_PASSWORD") ?: "Uwb123!!";
