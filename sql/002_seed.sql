@@ -1,4 +1,4 @@
 INSERT INTO items (name) VALUES
-('Pierwszy rekord'),
-('Drugi rekord'),
-('Trzeci rekord');
+('Adrian – UWB'),
+('Nr albumu: 89404'),
+('Automatyzacja wdrożeń PHP');
