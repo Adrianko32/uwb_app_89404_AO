@@ -1,38 +1,44 @@
-name: Run SQL scripts
+name: Execute SQL scripts
 
 on:
-  workflow_dispatch:
   push:
+    branches: [ "main" ]
     paths:
       - "sql/**"
+  workflow_dispatch:
 
 jobs:
-  migrate:
+  sql:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install MySQL client
-        run: sudo apt-get update && sudo apt-get install -y mysql-client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y mysql-client
 
-      - name: Run migrations
+      - name: Run SQL scripts
         env:
           DB_HOST: ${{ secrets.DB_HOST }}
-          DB_NAME: ${{ secrets.DB_NAME }}
           DB_USER: ${{ secrets.DB_USER }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_NAME: ${{ secrets.DB_NAME }}
         run: |
           set -euo pipefail
 
-          cat > ~/.my.cnf << EOF
+          # bezpiecznie trzymamy hasło w pliku konfiga klienta
+          cat > ~/.my.cnf <<EOF
           [client]
+          host=${DB_HOST}
           user=${DB_USER}
           password=${DB_PASSWORD}
-          host=${DB_HOST}
           EOF
           chmod 600 ~/.my.cnf
 
           for f in sql/*.sql; do
-            echo "Executing $f..."
+            echo "Executing $f"
             mysql --defaults-file=~/.my.cnf --protocol=TCP "${DB_NAME}" < "$f"
           done
