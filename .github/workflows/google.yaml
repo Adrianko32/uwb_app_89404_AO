@@ -2,8 +2,8 @@ name: Deploy PHP App to Apache VM
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -11,16 +11,27 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Setup SSH
+        shell: bash
         run: |
+          set -euo pipefail
+
+          echo "SERVER_HOST='${{ secrets.SERVER_HOST }}'"
+          echo "SSH_USER='${{ secrets.SSH_USER }}'"
+
+          if [ -z "${{ secrets.SERVER_HOST }}" ]; then
+            echo "ERROR: SERVER_HOST secret is empty or not set"
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
           chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ secrets.SERVER_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -H "${{ secrets.SERVER_HOST }}" >> ~/.ssh/known_hosts
 
       - name: Deploy application
         run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }} \
+          ssh "${{ secrets.SSH_USER }}@${{ secrets.SERVER_HOST }}" \
           "sudo /usr/local/bin/deploy_app.sh 89404 8009"
