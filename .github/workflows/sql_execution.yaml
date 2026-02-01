@@ -38,7 +38,7 @@ jobs:
           EOF
           chmod 600 ~/.my.cnf
 
-          for f in sql/*.sql; do
+          for f in $(ls -1 sql/*.sql | sort); do
             echo "Executing $f"
             mysql --defaults-file=~/.my.cnf --protocol=TCP "${DB_NAME}" < "$f"
           done

@@ -8,8 +8,10 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -20,4 +22,26 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
           script_stop: true
           script: |
+            echo "=== Running deploy_app.sh ==="
             sudo /usr/local/bin/deploy_app.sh 89404 8009
+
+            echo "=== Checking DocumentRoot ==="
+            ls -la /var/www/89404 || true
+
+            # jeśli index.php nie jest w root, znajdź go w podkatalogu i skopiuj wszystko do root
+            if [ ! -f /var/www/89404/index.php ]; then
+              echo "index.php not found in root, searching subdirectory..."
+              subdir="$(sudo find /var/www/89404 -maxdepth 3 -type f -name index.php -print -quit | xargs -r dirname)"
+              if [ -n "$subdir" ]; then
+                echo "Found index.php in $subdir, copying files to DocumentRoot"
+                sudo rsync -a --delete "$subdir"/ /var/www/89404/
+              else
+                echo "ERROR: index.php not found anywhere under /var/www/89404"
+              fi
+            fi
+
+            echo "=== Restarting Apache ==="
+            sudo systemctl restart apache2
+
+            echo "=== Final DocumentRoot content ==="
+            ls -la /var/www/89404
