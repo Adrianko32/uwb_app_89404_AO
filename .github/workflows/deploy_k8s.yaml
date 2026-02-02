@@ -1,0 +1,41 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_AUTH_KEY }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build Docker image
+        run: |
+          docker build -t us-central1-docker.pkg.dev/hopeful-keep-480204-e0/uwb/uwb-app-89404:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push us-central1-docker.pkg.dev/hopeful-keep-480204-e0/uwb/uwb-app-89404:latest
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+
+      - name: Deploy to Kubernetes cluster
+        run: |
+          echo "${{ secrets.K8S_KEY }}" > key.json
+          export GOOGLE_APPLICATION_CREDENTIALS=key.json
+          gcloud container clusters get-credentials cluster-1 --zone us-central1-c --project hopeful-keep-480204-e0
+          kubectl apply -f k8s/
